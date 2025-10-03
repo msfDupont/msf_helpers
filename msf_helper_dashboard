@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="UTF-8">
+<title>MSF Helper</title>
+<script src="https://cdn.jsdelivr.net/npm/alpinejs@3.15.0/dist/cdn.min.js" defer></script>
+<style>
+body { font-family:'Segoe UI', Arial, sans-serif; margin:0; background:#fafafa; color:#1e1e1e; }
+.app { max-width:950px; margin:auto; padding:30px; background:white; border-radius:10px; box-shadow:0 4px 16px rgba(0,0,0,.08); border-top:6px solid #e30613; }
+h2 { margin-bottom:20px; color:#e30613; font-size:28px; font-weight:700; text-transform:uppercase; }
+.nav-buttons { display:flex; gap:12px; margin-bottom:20px; flex-wrap:wrap; }
+.nav-buttons button { padding:10px 18px; border:none; border-radius:6px; background:#e30613; color:white; cursor:pointer; font-weight:600; transition:0.2s; flex:1; min-width:120px; }
+.nav-buttons button:hover { background:#c20511; }
+.nav-buttons button.active { background:#222; }
+.section { margin-top:20px; }
+.field { margin-bottom:16px; display:flex; flex-direction:column; }
+.field label { font-weight:600; margin-bottom:6px; }
+input, select, textarea { padding:12px; border:1px solid #ddd; border-radius:6px; font-size:15px; box-sizing:border-box; width:100%; }
+input:focus, select:focus, textarea:focus { outline:none; border-color:#e30613; box-shadow:0 0 0 2px rgba(227,6,19,0.2); }
+button { padding:10px 16px; border:none; border-radius:6px; background:#e30613; color:white; cursor:pointer; font-weight:600; font-size:14px; transition:0.2s; margin-top:12px; }
+button:hover { background:#c20511; }
+button.secondary { background:#444; margin-left:6px; }
+button.secondary:hover { background:#222; }
+table { width:100%; border-collapse: collapse; margin-top:20px; font-size:14px; border-radius:8px; overflow:hidden; }
+th, td { border:1px solid #e5e7eb; padding:12px; text-align:left; vertical-align:middle; }
+th { background:#f9f9f9; font-weight:600; color:#111; }
+.link-row:nth-child(even){ background:#fdfdfd; }
+.switch { position:relative; display:inline-block; width:46px; height:24px; }
+.switch input { display:none; }
+.slider { position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background-color:#ccc; transition:.3s; border-radius:24px; }
+.slider:before { position:absolute; content:""; height:18px; width:18px; left:3px; bottom:3px; background:white; transition:.3s; border-radius:50%; }
+input:checked + .slider { background-color:#e30613; }
+input:checked + .slider:before { transform:translateX(22px); }
+.tooltip { font-size:12px; color:#666; margin-top:4px; display:block; }
+.notifikation { position:fixed; bottom:20px; right:20px; background:#e30613; color:white; padding:10px 16px; border-radius:6px; font-size:14px; opacity:0; transition:opacity 0.3s ease; z-index:9999; }
+.notifikation.show { opacity:1; }
+.section-toggle { border:1px solid #e5e7eb; border-radius:8px; padding:16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; background:#fff;}
+.progress-bar { width:100%; height:12px; border-radius:6px; background:#eee; overflow:hidden; margin-top:4px; }
+.progress-bar-inner { height:100%; transition:width 0.2s; }
+</style>
+</head>
+<body>
+<div class="app" x-data="dashboardApp()">
+  <h2>MSF DASHBOARD</h2>
+
+  <div class="nav-buttons">
+    <button :class="{'active': activeApp==='utm'}" @click="activeApp='utm'">UTM Builder</button>
+    <button :class="{'active': activeApp==='sms'}" @click="activeApp='sms'">SMS Tæller</button>
+  </div>
+
+  <div class="section">
+    <template x-if="activeApp==='utm'">
+      <div x-data="utmBuilder()">
+        <div class="field">
+          <label>Basis-URL</label>
+          <input type="url" x-model="basisUrl" placeholder="fx: msf.dk/stoet/gaza">
+        </div>
+
+        <div class="field">
+          <label>Kanal</label>
+          <select x-model="kanal">
+            <option value="email">E-mail</option>
+            <option value="sms">SMS</option>
+            <option value="meta">Meta</option>
+            <option value="facebook">Facebook</option>
+            <option value="instagram">Instagram</option>
+            <option value="google_ads">Google Ads</option>
+            <option value="ms_ads">Microsoft Ads</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Kampagne (max 4 tegn)</label>
+          <input type="text" x-model="kampagne" @input="kampagne = kampagne.toUpperCase().slice(0,4)" placeholder="fx GAZA">
+        </div>
+
+        <div class="field">
+          <label>Indhold</label>
+          <input type="text" x-model="indhold" placeholder="bannerA, heroCTA">
+        </div>
+
+        <div class="field">
+          <label>Anker</label>
+          <select x-model="anker">
+            <option value="">Intet</option>
+            <option value="video">Video</option>
+            <option value="topbanner">Topbanner</option>
+            <option value="footer">Footer</option>
+            <option value="gvform">Gravity form</option>
+          </select>
+        </div>
+
+        <div class="section-toggle">
+          <label>Opret flere versioner</label>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <label class="switch">
+              <input type="checkbox" x-model="flereVersioner">
+              <span class="slider"></span>
+            </label>
+            <input class="version-input" type="number" x-model.number="antalVersioner" min="1" x-show="flereVersioner">
+          </div>
+        </div>
+
+        <button @click="genererLinks()">Generér links</button>
+
+        <table x-show="links.length">
+          <thead>
+            <tr>
+              <th>URL</th><th>utm_source</th><th>utm_medium</th><th>utm_campaign</th><th>utm_content</th><th>Anker</th><th>Handlinger</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template x-for="(l,i) in links" :key="i">
+              <tr class="link-row">
+                <td x-text="l.url" style="word-break:break-all;"></td>
+                <td x-text="l.utm_source"></td>
+                <td x-text="l.utm_medium"></td>
+                <td x-text="l.utm_campaign"></td>
+                <td x-text="l.utm_content"></td>
+                <td x-text="l.anker"></td>
+                <td>
+                  <div style="display:inline-flex; gap:6px;">
+                    <button @click="kopier(l)">Kopiér</button>
+                    <button class="secondary" @click="aabn(l.url)">Åbn</button>
+                  </div>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
+    </template>
+
+    <template x-if="activeApp==='sms'">
+      <div x-data="smsCounter()">
+        <div class="field">
+          <label>Indtast SMS tekst</label>
+          <textarea x-model="text" @input="calculate()" placeholder="Skriv din SMS her..."></textarea>
+        </div>
+
+        <template x-for="(seg,i) in segments" :key="i">
+          <div style="margin-bottom:8px;">
+            <div>Segment <strong x-text="i+1"></strong>: <span x-text="seg.charCount"></span> tegn | <span x-text="seg.encoding"></span> | <span x-text="seg.warning"></span></div>
+            <div class="progress-bar">
+              <div class="progress-bar-inner" :style="`width:${seg.percent}%; background:${seg.color};`"></div>
+            </div>
+          </div>
+        </template>
+
+        <div style="margin-top:12px; display:flex; gap:10px;">
+          <button @click="copyText()">Kopiér tekst</button>
+          <button class="secondary" @click="downloadCSV()" x-show="segments.length">Download CSV</button>
+        </div>
+      </div>
+    </template>
+  </div>
+</div>
+
+<script>
+function dashboardApp(){ return { activeApp:'utm' } }
+
+function utmBuilder(){
+  return {
+    basisUrl:'', kanal:'email', kampagne:localStorage.getItem('kampagne')||'', indhold:'', anker:'', flereVersioner:false, antalVersioner:3, links:[],
+    kanalMap:{email:{source:'sfmc',medium:'email'},sms:{source:'sfmc',medium:'sms'},meta:{source:'meta',medium:'paid_social'},facebook:{source:'facebook',medium:'paid_social'},instagram:{source:'instagram',medium:'paid_social'},google_ads:{source:'google',medium:'cpc'},ms_ads:{source:'bing',medium:'cpc'}},
+    genererLinks(){this.links=[]; const src=this.kanalMap[this.kanal].source,med=this.kanalMap[this.kanal].medium;
+      if(this.flereVersioner){for(let i=1;i<=this.antalVersioner;i++){const c=this.indhold?`${this.indhold}-${i}`:`${i}`;const p={utm_source:src,utm_medium:med,utm_campaign:this.kampagne,utm_content:c};this.links.push({...p,url:this.tilfoejParametre(this.basisUrl,p,this.anker),anker:this.anker})}}
+      else{const p={utm_source:src,utm_medium:med,utm_campaign:this.kampagne,utm_content:this.indhold||undefined};this.links.push({...p,url:this.tilfoejParametre(this.basisUrl,p,this.anker),anker:this.anker})}
+      localStorage.setItem('kampagne',this.kampagne)
+    },
+    tilfoejParametre(u,p,a){if(!/^https?:\/\//i.test(u)) u='https://'+u; const url=new URL(u); Object.entries(p).forEach(([k,v])=>{if(v && !url.searchParams.has(k)) url.searchParams.set(k,v)}); if(a) url.hash=a; return url.toString()},
+    kopier(l){navigator.clipboard.writeText(l.url)},
+    aabn(u){window.open(u,'_blank')}
+  }
+}
+
+function smsCounter(){
+  return {
+    text:'', segments:[],
+    calculate(){this.segments=[]; if(!this.text) return; const GSM7=/^[\x00-\x7F]*$/; const unicode=/[^\x00-\x7F]/; let segCount=0, currentEnc='GSM', val=0; for(let i=0;i<this.text.length;i++){const c=this.text[i]; if(unicode.test(c)) currentEnc='Unicode'; segCount++;} const limit=currentEnc==='Unicode'?67:160; const percent=Math.min(100,segCount/limit*100); const color=percent<80?'green':percent<100?'yellow':'red'; this.segments=[{charCount:segCount,encoding:currentEnc,warning:segCount>limit?'⚠ Over grænsen':'OK',percent,color}]},
+    copyText(){navigator.clipboard.writeText(this.text)},
+    downloadCSV(){let csv='Segment,Karakterer,Encoding,Advarsel\n'; this.segments.forEach((s,i)=>csv+=`${i+1},${s.charCount},${s.encoding},${s.warning}\n`); const blob=new Blob([csv],{type:'text/csv'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='sms_segments.csv'; document.body.appendChild(a); a.click(); a.remove();}
+  }
+}
+</script>
+</body>
+</html>
