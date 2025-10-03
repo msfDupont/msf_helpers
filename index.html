@@ -55,7 +55,6 @@ input:checked + .slider:before { transform:translateX(22px); }
           <label>Basis-URL</label>
           <input type="url" x-model="basisUrl" placeholder="fx: msf.dk/stoet/gaza">
         </div>
-
         <div class="field">
           <label>Kanal</label>
           <select x-model="kanal">
@@ -68,17 +67,14 @@ input:checked + .slider:before { transform:translateX(22px); }
             <option value="ms_ads">Microsoft Ads</option>
           </select>
         </div>
-
         <div class="field">
           <label>Kampagne (max 4 tegn)</label>
           <input type="text" x-model="kampagne" @input="kampagne = kampagne.toUpperCase().slice(0,4)" placeholder="fx GAZA">
         </div>
-
         <div class="field">
           <label>Indhold</label>
           <input type="text" x-model="indhold" placeholder="bannerA, heroCTA">
         </div>
-
         <div class="field">
           <label>Anker</label>
           <select x-model="anker">
@@ -89,7 +85,6 @@ input:checked + .slider:before { transform:translateX(22px); }
             <option value="gvform">Gravity form</option>
           </select>
         </div>
-
         <div class="section-toggle">
           <label>Opret flere versioner</label>
           <div style="display:flex; align-items:center; gap:10px;">
@@ -100,14 +95,10 @@ input:checked + .slider:before { transform:translateX(22px); }
             <input class="version-input" type="number" x-model.number="antalVersioner" min="1" x-show="flereVersioner">
           </div>
         </div>
-
         <button @click="genererLinks()">Generér links</button>
-
         <table x-show="links.length">
           <thead>
-            <tr>
-              <th>URL</th><th>utm_source</th><th>utm_medium</th><th>utm_campaign</th><th>utm_content</th><th>Anker</th><th>Handlinger</th>
-            </tr>
+            <tr><th>URL</th><th>utm_source</th><th>utm_medium</th><th>utm_campaign</th><th>utm_content</th><th>Anker</th><th>Handlinger</th></tr>
           </thead>
           <tbody>
             <template x-for="(l,i) in links" :key="i">
@@ -177,7 +168,25 @@ function utmBuilder(){
 function smsCounter(){
   return {
     text:'', segments:[],
-    calculate(){this.segments=[]; if(!this.text) return; const GSM7=/^[\x00-\x7F]*$/; const unicode=/[^\x00-\x7F]/; let segCount=0, currentEnc='GSM', val=0; for(let i=0;i<this.text.length;i++){const c=this.text[i]; if(unicode.test(c)) currentEnc='Unicode'; segCount++;} const limit=currentEnc==='Unicode'?67:160; const percent=Math.min(100,segCount/limit*100); const color=percent<80?'green':percent<100?'yellow':'red'; this.segments=[{charCount:segCount,encoding:currentEnc,warning:segCount>limit?'⚠ Over grænsen':'OK',percent,color}]},
+    calculate(){
+      this.segments=[];
+      if(!this.text) return;
+      let GSM7 = /^[\x00-\x7F]*$/;
+      let chars = [...this.text];
+      let currentSeg=[], currentEnc='GSM';
+      for(let c of chars){if(c.charCodeAt(0)>127) currentEnc='Unicode'; currentSeg.push(c);}
+      let limit = currentEnc==='Unicode'?67:160;
+      let segs = [];
+      while(currentSeg.length>0){
+        let chunk = currentSeg.splice(0,limit);
+        let count = chunk.length;
+        let percent = Math.min(100, count/limit*100);
+        let color = percent<80?'green':percent<100?'yellow':'red';
+        let warning = count>limit?'⚠ Over grænsen':'OK';
+        segs.push({charCount:count,encoding:currentEnc,percent,color,warning});
+      }
+      this.segments=segs;
+    },
     copyText(){navigator.clipboard.writeText(this.text)},
     downloadCSV(){let csv='Segment,Karakterer,Encoding,Advarsel\n'; this.segments.forEach((s,i)=>csv+=`${i+1},${s.charCount},${s.encoding},${s.warning}\n`); const blob=new Blob([csv],{type:'text/csv'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='sms_segments.csv'; document.body.appendChild(a); a.click(); a.remove();}
   }
